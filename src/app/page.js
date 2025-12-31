@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { Device } from '@capacitor/device';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import Image from 'next/image';
+import { useSound } from './hooks/useSound';
 
 export default function Home() {
   const [lang, setLang] = useState(null);
   const [gameState, setGameState] = useState('welcome'); // welcome, cleaning, fixing, done
   const [progress, setProgress] = useState(0);
+  const { playTap, playSuccess } = useSound();
 
   useEffect(() => {
     async function checkLanguage() {
@@ -40,6 +42,7 @@ export default function Home() {
   const handlePhoneInteraction = () => {
     if (gameState === 'cleaning') {
       triggerHaptic();
+      playTap();
       const newProgress = progress + 10;
       if (newProgress >= 100) {
         setProgress(0);
@@ -49,10 +52,12 @@ export default function Home() {
       }
     } else if (gameState === 'fixing') {
       triggerHaptic();
+      playTap();
       const newProgress = progress + 10;
       if (newProgress >= 100) {
         setProgress(100);
         setGameState('done');
+        playSuccess();
       } else {
         setProgress(newProgress);
       }
