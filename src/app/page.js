@@ -12,7 +12,17 @@ export default function Home() {
   const [gameState, setGameState] = useState('welcome'); // welcome, cleaning, fixing, deco, done
   const [progress, setProgress] = useState(0);
   const [money, setMoney] = useState(0);
+  const [level, setLevel] = useState(0);
   const { playTap, playSuccess } = useSound();
+
+  const STAGES = [
+    { id: 0, title: 'Old Classic', desc_en: 'Heavily dusted screen', desc_ja: 'ホコリまみれの旧式スマホ', color: '#1a1a1a', tilt: 0 },
+    { id: 1, title: 'Extreme Crack', desc_en: 'Shattered glass everywhere', desc_ja: 'バキバキの画面', color: '#2c3e50', tilt: 10 },
+    { id: 2, title: 'Neon Edition', desc_en: 'High-end stylish phone', desc_ja: '最新のネオンスマホ', color: '#8e44ad', tilt: -5 },
+    { id: 3, title: 'Future Pad', desc_en: 'Large experimental tablet', desc_ja: '大型の試作タブレット', color: '#27ae60', tilt: 5 },
+  ];
+
+  const currentStage = STAGES[level % STAGES.length];
 
   // Deco State
   const [bodyColor, setBodyColor] = useState('transparent');
@@ -31,10 +41,6 @@ export default function Home() {
   // --- ASMR Particle System ---
   const spawnParticles = useCallback((x, y, type) => {
     const rect = canvasRef.current.getBoundingClientRect();
-    const scrollX = window.scrollX || window.pageXOffset;
-    const scrollY = window.scrollY || window.pageYOffset;
-
-    // Adjust x, y relative to canvas
     const canvasX = x - rect.left;
     const canvasY = y - rect.top;
 
@@ -92,7 +98,6 @@ export default function Home() {
     }
   }, [gameState, updateParticles]);
 
-  // Handle Resize for Canvas
   useEffect(() => {
     const handleResize = () => {
       if (canvasRef.current) {
@@ -104,8 +109,6 @@ export default function Home() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [gameState]);
-
-  // --- End ASMR Particle System ---
 
   useEffect(() => {
     async function checkLanguage() {
@@ -134,8 +137,8 @@ export default function Home() {
       await Share.share({
         title: isJapanese ? '最高のデコスマホ完成！' : 'Custom Phone Repaired!',
         text: isJapanese
-          ? '「AI Phone Repair & Deco Master」で自分だけのスマホを作ったよ！'
-          : 'I just repaired and decorated my own phone in AI Phone Repair & Deco Master!',
+          ? `「AI Phone Repair」でステージ ${level + 1} をクリア！`
+          : `Just cleared Stage ${level + 1} in AI Phone Repair!`,
         url: 'https://github.com/1p-MAKER/global-hybrid-app',
         dialogTitle: isJapanese ? 'シェアする' : 'Share with friends',
       });
@@ -179,7 +182,7 @@ export default function Home() {
       if (dist > 10) {
         lastPos.current = { x: e.clientX, y: e.clientY };
         if (gameState === 'cleaning' || gameState === 'fixing') {
-          updateProgress(dist / 15);
+          updateProgress(dist / (15 + level)); // Gradually get harder
           triggerHaptic(ImpactStyle.Light);
           spawnParticles(e.clientX, e.clientY, gameState);
         }
@@ -220,7 +223,7 @@ export default function Home() {
     setStickers([...stickers, newSticker]);
     triggerHaptic();
     playTap();
-    setMoney(m => m + 10); // Decorating adds value
+    setMoney(m => m + 10);
   };
 
   const getToolIcon = () => {
@@ -243,12 +246,14 @@ export default function Home() {
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
     >
-      {/* MONEY DISPLAY */}
+      <div style={{ position: 'absolute', top: '20px', left: '20px', fontSize: '0.9rem', opacity: 0.6, fontWeight: 'bold' }}>
+        STAGE {level + 1}
+      </div>
+
       <div className="money-display">
         🪙 ${money}
       </div>
 
-      {/* CUSTOM CURSOR */}
       <div
         className="tool-cursor"
         style={{ left: mousePos.x, top: mousePos.y }}
@@ -256,9 +261,7 @@ export default function Home() {
         {getToolIcon()}
       </div>
 
-      {/* PHONE ASSET LAYER */}
-      <div className="phone-wrapper">
-        {/* Damaged Phone */}
+      <div className="phone-wrapper" style={{ transform: `rotate(${currentStage.tilt}deg)` }}>
         <Image
           src="/phone_damaged.png"
           alt="Damaged Phone"
@@ -268,11 +271,11 @@ export default function Home() {
             opacity: gameState === 'cleaning' || (gameState === 'fixing' && progress <= 50) || gameState === 'welcome' ? 1 : 0,
             transition: 'opacity 0.5s ease',
             transform: gameState === 'cleaning' ? `scale(${1 + progress / 800})` : 'scale(1)',
-            zIndex: 1
+            zIndex: 1,
+            filter: `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) drop-shadow(0 0 0 ${currentStage.color})` // Vary phone body color
           }}
         />
 
-        {/* Clean Phone base */}
         <Image
           src="/phone_clean.png"
           alt="Clean Phone"
@@ -282,14 +285,14 @@ export default function Home() {
             opacity: (gameState === 'fixing' && progress > 50) || gameState === 'deco' || gameState === 'done' ? 1 : 0,
             transition: 'opacity 0.5s ease',
             zIndex: 2,
-            filter: bodyColor !== 'transparent' ? `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) opacity(0.8) drop-shadow(0 0 0 ${bodyColor})` : undefined
+            filter: bodyColor !== 'transparent'
+              ? `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) opacity(0.8) drop-shadow(0 0 0 ${bodyColor})`
+              : `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) drop-shadow(0 0 0 ${currentStage.color})`
           }}
         />
 
-        {/* ASMR Particle Canvas */}
         <canvas ref={canvasRef} className="asmr-canvas"></canvas>
 
-        {/* Color Overlay for Deco */}
         {(gameState === 'deco' || gameState === 'done') && bodyColor !== 'transparent' && (
           <div style={{
             position: 'absolute', top: 18, left: 16, right: 16, bottom: 18,
@@ -297,35 +300,29 @@ export default function Home() {
             backgroundColor: bodyColor,
             mixBlendMode: 'overlay',
             opacity: 0.6,
-            zIndex: 16, // Above canvas particles or below? Let's say above particles
+            zIndex: 16,
             pointerEvents: 'none'
           }}></div>
         )}
 
-        {/* Stickers Layer */}
         {(gameState === 'deco' || gameState === 'done') && stickers.map(s => (
           <div key={s.id} className={`sticker sticker-${s.type}`} style={{ left: s.x, top: s.y, zIndex: 17 }}></div>
         ))}
 
-        {/* Interaction layer */}
         <div className="interaction-layer"></div>
       </div>
 
-      {/* UI OVERLAY LAYER */}
       <div className="ui-overlay">
-
-        {/* WELCOME SCREEN */}
         {gameState === 'welcome' && (
           <div className="status-panel">
-            <h2>{isJapanese ? '修理の依頼が届いています' : 'Repair Request Received'}</h2>
-            <p>{isJapanese ? '画面がバキバキのスマホ...' : 'Effectively smashed screen...'}</p>
-            <button className="action-btn" onClick={handleStart}>
+            <h2>{isJapanese ? currentStage.desc_ja : currentStage.desc_en}</h2>
+            <p>{currentStage.title}</p>
+            <button className="action-btn" style={{ marginTop: '1rem' }} onClick={handleStart}>
               {isJapanese ? '修理を開始する' : 'Start Repair'}
             </button>
           </div>
         )}
 
-        {/* CLEANING PHASE */}
         {gameState === 'cleaning' && (
           <div className="status-panel">
             <h2>{isJapanese ? 'クリーニング中...' : 'Cleaning...'}</h2>
@@ -336,7 +333,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* FIXING PHASE */}
         {gameState === 'fixing' && (
           <div className="status-panel">
             <h2>{isJapanese ? '修理中...' : 'Repairing...'}</h2>
@@ -347,74 +343,28 @@ export default function Home() {
           </div>
         )}
 
-        {/* DECO PHASE */}
         {gameState === 'deco' && (
           <div className="status-panel">
             <h2>{isJapanese ? 'デコレーション' : 'Decoration Time!'}</h2>
-
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '1rem' }}>
-              <button
-                onClick={() => setSelectedTool('color')}
-                className="action-btn"
-                style={{ background: selectedTool === 'color' ? '#fff' : 'rgba(255,255,255,0.1)', color: selectedTool === 'color' ? '#000' : '#fff', padding: '0.5rem 1rem' }}
-              >
-                🎨 Color
-              </button>
-              <button
-                onClick={() => setSelectedTool('sticker')}
-                className="action-btn"
-                style={{ background: selectedTool === 'sticker' ? '#fff' : 'rgba(255,255,255,0.1)', color: selectedTool === 'sticker' ? '#000' : '#fff', padding: '0.5rem 1rem' }}
-              >
-                ✨ Sticker
-              </button>
+              <button onClick={() => setSelectedTool('color')} className="action-btn" style={{ background: selectedTool === 'color' ? '#fff' : 'rgba(255,255,255,0.1)', color: selectedTool === 'color' ? '#000' : '#fff', padding: '0.5rem 1rem' }}>🎨 Color</button>
+              <button onClick={() => setSelectedTool('sticker')} className="action-btn" style={{ background: selectedTool === 'sticker' ? '#fff' : 'rgba(255,255,255,0.1)', color: selectedTool === 'sticker' ? '#000' : '#fff', padding: '0.5rem 1rem' }}>✨ Sticker</button>
             </div>
-
-            {selectedTool === 'color' && (
-              <div className="palette">
-                {COLORS.map(c => (
-                  <div
-                    key={c}
-                    className={`color-swatch ${bodyColor === c ? 'active' : ''}`}
-                    style={{ background: c }}
-                    onClick={() => { setBodyColor(c); playTap(); }}
-                  />
-                ))}
-              </div>
-            )}
-
-            {selectedTool === 'sticker' && (
-              <p style={{ fontSize: '0.8rem' }}>
-                {isJapanese ? '画面をタップしてスタンプ！' : 'Tap screen to stamp!'}
-              </p>
-            )}
-
-            <button className="action-btn" style={{ marginTop: '1rem', background: '#4ADE80' }} onClick={() => { setGameState('done'); playSuccess(); }}>
-              {isJapanese ? '完成！' : 'Finish!'}
-            </button>
+            {selectedTool === 'color' && <div className="palette">{COLORS.map(c => <div key={c} className={`color-swatch ${bodyColor === c ? 'active' : ''}`} style={{ background: c }} onClick={() => { setBodyColor(c); playTap(); }} />)}</div>}
+            {selectedTool === 'sticker' && <p style={{ fontSize: '0.8rem' }}>{isJapanese ? '画面をタップしてスタンプ！' : 'Tap screen to stamp!'}</p>}
+            <button className="action-btn" style={{ marginTop: '1rem', background: '#4ADE80' }} onClick={() => { setGameState('done'); playSuccess(); setLevel(l => l + 1); }}>{isJapanese ? '完成！' : 'Finish!'}</button>
           </div>
         )}
 
-        {/* DONE PHASE */}
         {gameState === 'done' && (
           <div className="status-panel">
             <h2>{isJapanese ? '修理完了！' : 'Repair Complete!'}</h2>
-
             <div style={{ display: 'flex', gap: '1rem', width: '100%', marginTop: '1rem' }}>
-              <button className="action-btn" style={{ background: '#38BDF8', color: '#fff' }} onClick={handleShare}>
-                {isJapanese ? 'シェアする' : 'Share'}
-              </button>
-              <button className="action-btn" onClick={() => {
-                setGameState('welcome');
-                setProgress(0);
-                setStickers([]);
-                setBodyColor('transparent');
-              }}>
-                {isJapanese ? '次へ' : 'Next'}
-              </button>
+              <button className="action-btn" style={{ background: '#38BDF8', color: '#fff' }} onClick={handleShare}>{isJapanese ? 'シェアする' : 'Share'}</button>
+              <button className="action-btn" onClick={() => { setGameState('welcome'); setProgress(0); setStickers([]); setBodyColor('transparent'); }}>{isJapanese ? '次の依頼へ' : 'Next Request'}</button>
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
