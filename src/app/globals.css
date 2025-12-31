@@ -71,7 +71,29 @@ body {
   pointer-events: none;
   /* They are "painted" on */
   z-index: 10;
+  background-image: url('/stickers.png');
+  background-size: 200%;
+  /* 2x2 grid assumed for now */
+  /* This creates a sprite window */
 }
+
+/* Sprite Classes */
+.sticker-0 {
+  background-position: 0% 0%;
+}
+
+.sticker-1 {
+  background-position: 100% 0%;
+}
+
+.sticker-2 {
+  background-position: 0% 100%;
+}
+
+.sticker-3 {
+  background-position: 100% 100%;
+}
+
 
 .interaction-layer {
   position: absolute;

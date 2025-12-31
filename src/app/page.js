@@ -83,7 +83,7 @@ export default function Home() {
         id: Date.now(),
         x,
         y,
-        type: 'star' // default for now
+        type: Math.floor(Math.random() * 4) // 0-3 for sprite classes
       };
       setStickers([...stickers, newSticker]);
       triggerHaptic();
@@ -123,8 +123,6 @@ export default function Home() {
             zIndex: 2,
             // Apply color filter if bodyColor is set
             filter: bodyColor !== 'transparent' ? `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) opacity(0.8) drop-shadow(0 0 0 ${bodyColor})` : undefined
-            // Note: CSS filter for color changing isn't perfect for images but serves as a prototype.
-            // Better approach: Overlay div with mix-blend-mode
           }}
         />
 
@@ -143,9 +141,7 @@ export default function Home() {
 
         {/* Stickers Layer */}
         {(gameState === 'deco' || gameState === 'done') && stickers.map(s => (
-          <div key={s.id} className="sticker" style={{ left: s.x, top: s.y, fontSize: '2rem' }}>
-            ⭐
-          </div>
+          <div key={s.id} className={`sticker sticker-${s.type}`} style={{ left: s.x, top: s.y }}></div>
         ))}
 
         {/* Interaction hint overlay */}
