@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Device } from '@capacitor/device';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Share } from '@capacitor/share';
@@ -9,14 +9,20 @@ import { useSound } from './hooks/useSound';
 
 export default function Home() {
   const [lang, setLang] = useState(null);
-  const [gameState, setGameState] = useState('welcome'); // welcome, cleaning, fixing, done, deco
+  const [gameState, setGameState] = useState('welcome'); // welcome, cleaning, fixing, deco, done
   const [progress, setProgress] = useState(0);
+  const [money, setMoney] = useState(0);
   const { playTap, playSuccess } = useSound();
 
   // Deco State
   const [bodyColor, setBodyColor] = useState('transparent');
   const [stickers, setStickers] = useState([]);
   const [selectedTool, setSelectedTool] = useState(null); // 'color', 'sticker'
+
+  // Input State
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isPointerDown, setIsPointerDown] = useState(false);
+  const lastPos = useRef({ x: 0, y: 0 });
 
   const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#f59e0b'];
 
@@ -34,9 +40,9 @@ export default function Home() {
 
   const isJapanese = lang && (lang.toLowerCase() === 'ja' || lang.toLowerCase().startsWith('ja-'));
 
-  const triggerHaptic = async () => {
+  const triggerHaptic = async (style = ImpactStyle.Heavy) => {
     try {
-      await Haptics.impact({ style: ImpactStyle.Heavy });
+      await Haptics.impact({ style });
     } catch (e) {
       // Ignore
     }
@@ -64,51 +70,114 @@ export default function Home() {
     setBodyColor('transparent');
   };
 
-  const handlePhoneInteraction = (e) => {
-    if (gameState === 'cleaning') {
-      triggerHaptic();
-      playTap();
-      const newProgress = progress + 10;
-      if (newProgress >= 100) {
-        setProgress(0);
-        setGameState('fixing');
-      } else {
-        setProgress(newProgress);
-      }
-    } else if (gameState === 'fixing') {
-      triggerHaptic();
-      playTap();
-      const newProgress = progress + 10;
-      if (newProgress >= 100) {
-        setProgress(0);
-        setGameState('deco');
-        playSuccess();
-      } else {
-        setProgress(newProgress);
-      }
-    } else if (gameState === 'deco' && selectedTool === 'sticker') {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+  const handlePointerDown = (e) => {
+    setIsPointerDown(true);
+    lastPos.current = { x: e.clientX, y: e.clientY };
 
-      const newSticker = {
-        id: Date.now(),
-        x,
-        y,
-        type: Math.floor(Math.random() * 4)
-      };
-      setStickers([...stickers, newSticker]);
-      triggerHaptic();
-      playTap();
+    // Tap behavior for specific states
+    if (gameState === 'cleaning' || gameState === 'fixing') {
+      // Boost progress on tap even if not moving
+      updateProgress(0.5);
+    } else if (gameState === 'deco' && selectedTool === 'sticker') {
+      placeSticker(e);
     }
+  };
+
+  const handlePointerUp = () => {
+    setIsPointerDown(false);
+  };
+
+  const handlePointerMove = (e) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+
+    if (isPointerDown) {
+      const dist = Math.sqrt(
+        Math.pow(e.clientX - lastPos.current.x, 2) +
+        Math.pow(e.clientY - lastPos.current.y, 2)
+      );
+
+      if (dist > 10) {
+        lastPos.current = { x: e.clientX, y: e.clientY };
+        if (gameState === 'cleaning' || gameState === 'fixing') {
+          updateProgress(dist / 20);
+          triggerHaptic(ImpactStyle.Light);
+        }
+      }
+    }
+  };
+
+  const updateProgress = (amount) => {
+    const newProgress = Math.min(100, progress + amount);
+    setProgress(newProgress);
+
+    if (newProgress >= 100) {
+      if (gameState === 'cleaning') {
+        setGameState('fixing');
+        setProgress(0);
+        setMoney(m => m + 50);
+        playSuccess();
+      } else if (gameState === 'fixing') {
+        setGameState('deco');
+        setProgress(0);
+        setMoney(m => m + 100);
+        playSuccess();
+      }
+    }
+  };
+
+  const placeSticker = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const newSticker = {
+      id: Date.now(),
+      x,
+      y,
+      type: Math.floor(Math.random() * 4)
+    };
+    setStickers([...stickers, newSticker]);
+    triggerHaptic();
+    playTap();
+    setMoney(m => m - 5); // Using stickers costs a tiny bit of material money? Or maybe it adds value? 
+    // Let's say it adds value in the final evaluation.
+  };
+
+  const getToolIcon = () => {
+    if (gameState === 'cleaning') return '🧹';
+    if (gameState === 'fixing') return '🪚';
+    if (gameState === 'deco') {
+      if (selectedTool === 'color') return '🎨';
+      if (selectedTool === 'sticker') return '✨';
+      return '🖌️';
+    }
+    return '👆';
   };
 
   if (!lang) return <div className="spinner"></div>;
 
   return (
-    <div className="game-container">
+    <div
+      className="game-container"
+      onPointerMove={handlePointerMove}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+    >
+      {/* MONEY DISPLAY */}
+      <div className="money-display">
+        🪙 ${money}
+      </div>
+
+      {/* CUSTOM CURSOR */}
+      <div
+        className="tool-cursor"
+        style={{ left: mousePos.x, top: mousePos.y }}
+      >
+        {getToolIcon()}
+      </div>
+
       {/* PHONE ASSET LAYER */}
-      <div className="phone-wrapper" onClick={handlePhoneInteraction}>
+      <div className="phone-wrapper">
         {/* Damaged Phone */}
         <Image
           src="/phone_damaged.png"
@@ -130,7 +199,7 @@ export default function Home() {
           fill
           className="phone-image"
           style={{
-            opacity: gameState === 'fixing' && progress > 50 || gameState === 'deco' || gameState === 'done' ? 1 : 0,
+            opacity: (gameState === 'fixing' && progress > 50) || gameState === 'deco' || gameState === 'done' ? 1 : 0,
             transition: 'opacity 0.5s ease',
             zIndex: 2,
             filter: bodyColor !== 'transparent' ? `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) opacity(0.8) drop-shadow(0 0 0 ${bodyColor})` : undefined
@@ -155,10 +224,8 @@ export default function Home() {
           <div key={s.id} className={`sticker sticker-${s.type}`} style={{ left: s.x, top: s.y }}></div>
         ))}
 
-        {/* Interaction hint overlay */}
-        {(gameState === 'cleaning' || gameState === 'fixing') && (
-          <div className="interaction-layer"></div>
-        )}
+        {/* Interaction layer to capture pointer events when needed */}
+        <div className="interaction-layer"></div>
       </div>
 
       {/* UI OVERLAY LAYER */}
@@ -179,7 +246,7 @@ export default function Home() {
         {gameState === 'cleaning' && (
           <div className="status-panel">
             <h2>{isJapanese ? 'クリーニング中...' : 'Cleaning...'}</h2>
-            <p>{isJapanese ? 'タップして汚れを落としましょう' : 'Tap to remove dirt'}</p>
+            <p>{isJapanese ? 'スワイプして汚れを落としましょう' : 'Swipe to remove dirt'}</p>
             <div className="repair-progress">
               <div className="progress-bar" style={{ width: `${progress}%` }}></div>
             </div>
