@@ -106,7 +106,7 @@ body {
   position: relative;
   width: 300px;
   height: 600px;
-  /* Image sizing handled by Next/Image, but wrapper constrains it */
+  perspective: 1000px;
 }
 
 .phone-image {
@@ -115,6 +115,18 @@ body {
   transition: transform 0.1s ease-out;
   pointer-events: none;
   /* Let clicks pass through to layer */
+}
+
+/** ASMR EFFECTS **/
+.asmr-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 15;
+  /* Above phone, below UI */
+  pointer-events: none;
 }
 
 /** DECO STYLES **/
@@ -130,7 +142,6 @@ body {
   background-image: url('/stickers.png');
   background-size: 200%;
   /* 2x2 grid assumed for now */
-  /* This creates a sprite window */
 }
 
 /* Sprite Classes */
@@ -158,7 +169,6 @@ body {
   width: 100%;
   height: 100%;
   z-index: 20;
-  /* Ensure this layer captures all taps */
 }
 
 .ui-overlay {
@@ -171,12 +181,10 @@ body {
   z-index: 30;
   width: 90%;
   pointer-events: none;
-  /* Let clicks pass through empty areas */
 }
 
 .ui-overlay>* {
   pointer-events: auto;
-  /* Re-enable pointer on actual UI elements */
 }
 
 .status-panel {

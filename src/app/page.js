@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Device } from '@capacitor/device';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Share } from '@capacitor/share';
@@ -23,8 +23,89 @@ export default function Home() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isPointerDown, setIsPointerDown] = useState(false);
   const lastPos = useRef({ x: 0, y: 0 });
+  const canvasRef = useRef(null);
+  const particles = useRef([]);
 
   const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#f59e0b'];
+
+  // --- ASMR Particle System ---
+  const spawnParticles = useCallback((x, y, type) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
+
+    // Adjust x, y relative to canvas
+    const canvasX = x - rect.left;
+    const canvasY = y - rect.top;
+
+    const count = type === 'cleaning' ? 3 : 8;
+    for (let i = 0; i < count; i++) {
+      particles.current.push({
+        x: canvasX,
+        y: canvasY,
+        vx: (Math.random() - 0.5) * 10,
+        vy: (Math.random() - 0.5) * 10 - 2,
+        life: 1.0,
+        size: Math.random() * 5 + 2,
+        color: type === 'cleaning' ? '#8B4513' : 'rgba(200, 230, 255, 0.8)',
+        shape: type === 'cleaning' ? 'circle' : 'poly'
+      });
+    }
+  }, []);
+
+  const updateParticles = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    particles.current = particles.current.filter(p => p.life > 0);
+
+    particles.current.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.5; // Gravity
+      p.life -= 0.02;
+
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+
+      if (p.shape === 'circle') {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.life * 10);
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+      }
+    });
+
+    requestAnimationFrame(updateParticles);
+  }, []);
+
+  useEffect(() => {
+    if (gameState !== 'welcome' && canvasRef.current) {
+      updateParticles();
+    }
+  }, [gameState, updateParticles]);
+
+  // Handle Resize for Canvas
+  useEffect(() => {
+    const handleResize = () => {
+      if (canvasRef.current) {
+        canvasRef.current.width = canvasRef.current.offsetWidth;
+        canvasRef.current.height = canvasRef.current.offsetHeight;
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [gameState]);
+
+  // --- End ASMR Particle System ---
 
   useEffect(() => {
     async function checkLanguage() {
@@ -74,10 +155,9 @@ export default function Home() {
     setIsPointerDown(true);
     lastPos.current = { x: e.clientX, y: e.clientY };
 
-    // Tap behavior for specific states
     if (gameState === 'cleaning' || gameState === 'fixing') {
-      // Boost progress on tap even if not moving
       updateProgress(0.5);
+      spawnParticles(e.clientX, e.clientY, gameState);
     } else if (gameState === 'deco' && selectedTool === 'sticker') {
       placeSticker(e);
     }
@@ -99,8 +179,9 @@ export default function Home() {
       if (dist > 10) {
         lastPos.current = { x: e.clientX, y: e.clientY };
         if (gameState === 'cleaning' || gameState === 'fixing') {
-          updateProgress(dist / 20);
+          updateProgress(dist / 15);
           triggerHaptic(ImpactStyle.Light);
+          spawnParticles(e.clientX, e.clientY, gameState);
         }
       }
     }
@@ -139,16 +220,15 @@ export default function Home() {
     setStickers([...stickers, newSticker]);
     triggerHaptic();
     playTap();
-    setMoney(m => m - 5); // Using stickers costs a tiny bit of material money? Or maybe it adds value? 
-    // Let's say it adds value in the final evaluation.
+    setMoney(m => m + 10); // Decorating adds value
   };
 
   const getToolIcon = () => {
     if (gameState === 'cleaning') return '🧹';
-    if (gameState === 'fixing') return '🪚';
+    if (gameState === 'fixing') return '✨';
     if (gameState === 'deco') {
       if (selectedTool === 'color') return '🎨';
-      if (selectedTool === 'sticker') return '✨';
+      if (selectedTool === 'sticker') return '⭐';
       return '🖌️';
     }
     return '👆';
@@ -187,7 +267,7 @@ export default function Home() {
           style={{
             opacity: gameState === 'cleaning' || (gameState === 'fixing' && progress <= 50) || gameState === 'welcome' ? 1 : 0,
             transition: 'opacity 0.5s ease',
-            transform: gameState === 'cleaning' ? `scale(${1 + progress / 500})` : 'scale(1)',
+            transform: gameState === 'cleaning' ? `scale(${1 + progress / 800})` : 'scale(1)',
             zIndex: 1
           }}
         />
@@ -206,6 +286,9 @@ export default function Home() {
           }}
         />
 
+        {/* ASMR Particle Canvas */}
+        <canvas ref={canvasRef} className="asmr-canvas"></canvas>
+
         {/* Color Overlay for Deco */}
         {(gameState === 'deco' || gameState === 'done') && bodyColor !== 'transparent' && (
           <div style={{
@@ -214,17 +297,17 @@ export default function Home() {
             backgroundColor: bodyColor,
             mixBlendMode: 'overlay',
             opacity: 0.6,
-            zIndex: 3,
+            zIndex: 16, // Above canvas particles or below? Let's say above particles
             pointerEvents: 'none'
           }}></div>
         )}
 
         {/* Stickers Layer */}
         {(gameState === 'deco' || gameState === 'done') && stickers.map(s => (
-          <div key={s.id} className={`sticker sticker-${s.type}`} style={{ left: s.x, top: s.y }}></div>
+          <div key={s.id} className={`sticker sticker-${s.type}`} style={{ left: s.x, top: s.y, zIndex: 17 }}></div>
         ))}
 
-        {/* Interaction layer to capture pointer events when needed */}
+        {/* Interaction layer */}
         <div className="interaction-layer"></div>
       </div>
 
@@ -246,7 +329,7 @@ export default function Home() {
         {gameState === 'cleaning' && (
           <div className="status-panel">
             <h2>{isJapanese ? 'クリーニング中...' : 'Cleaning...'}</h2>
-            <p>{isJapanese ? 'スワイプして汚れを落としましょう' : 'Swipe to remove dirt'}</p>
+            <p>{isJapanese ? 'スクラブして汚れを落としましょう' : 'Scrub to remove dirt'}</p>
             <div className="repair-progress">
               <div className="progress-bar" style={{ width: `${progress}%` }}></div>
             </div>
@@ -257,7 +340,7 @@ export default function Home() {
         {gameState === 'fixing' && (
           <div className="status-panel">
             <h2>{isJapanese ? '修理中...' : 'Repairing...'}</h2>
-            <p>{isJapanese ? '新しいパネルを装着します' : 'Installing new panel'}</p>
+            <p>{isJapanese ? 'ひび割れを磨いて直しましょう' : 'Polish away the cracks'}</p>
             <div className="repair-progress">
               <div className="progress-bar" style={{ width: `${progress}%`, background: '#4ADE80' }}></div>
             </div>
