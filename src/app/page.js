@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Device } from '@capacitor/device';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Share } from '@capacitor/share';
 import Image from 'next/image';
 import { useSound } from './hooks/useSound';
 
@@ -18,9 +19,6 @@ export default function Home() {
   const [selectedTool, setSelectedTool] = useState(null); // 'color', 'sticker'
 
   const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#f59e0b'];
-  // Simplified stickers for prototype (css circles/squares or reuse same asset with different hue if possible, but let's use the generated sheet cropped or just colored divs for now?)
-  // Actually we have stickers.png. Let's create virtual sticker items.
-  // For this prototype, placing a "Star" sticker.
 
   useEffect(() => {
     async function checkLanguage() {
@@ -41,6 +39,21 @@ export default function Home() {
       await Haptics.impact({ style: ImpactStyle.Heavy });
     } catch (e) {
       // Ignore
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        title: isJapanese ? '最高のデコスマホ完成！' : 'Custom Phone Repaired!',
+        text: isJapanese
+          ? '「AI Phone Repair & Deco Master」で自分だけのスマホを作ったよ！'
+          : 'I just repaired and decorated my own phone in AI Phone Repair & Deco Master!',
+        url: 'https://github.com/1p-MAKER/global-hybrid-app',
+        dialogTitle: isJapanese ? 'シェアする' : 'Share with friends',
+      });
+    } catch (e) {
+      console.log('Share failed:', e);
     }
   };
 
@@ -67,14 +80,13 @@ export default function Home() {
       playTap();
       const newProgress = progress + 10;
       if (newProgress >= 100) {
-        setProgress(0); // Reset for deco if needed, or just 100
-        setGameState('deco'); // Go to deco instead of done
+        setProgress(0);
+        setGameState('deco');
         playSuccess();
       } else {
         setProgress(newProgress);
       }
     } else if (gameState === 'deco' && selectedTool === 'sticker') {
-      // Place sticker at click position
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
@@ -83,7 +95,7 @@ export default function Home() {
         id: Date.now(),
         x,
         y,
-        type: Math.floor(Math.random() * 4) // 0-3 for sprite classes
+        type: Math.floor(Math.random() * 4)
       };
       setStickers([...stickers, newSticker]);
       triggerHaptic();
@@ -121,7 +133,6 @@ export default function Home() {
             opacity: gameState === 'fixing' && progress > 50 || gameState === 'deco' || gameState === 'done' ? 1 : 0,
             transition: 'opacity 0.5s ease',
             zIndex: 2,
-            // Apply color filter if bodyColor is set
             filter: bodyColor !== 'transparent' ? `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) opacity(0.8) drop-shadow(0 0 0 ${bodyColor})` : undefined
           }}
         />
@@ -129,7 +140,7 @@ export default function Home() {
         {/* Color Overlay for Deco */}
         {(gameState === 'deco' || gameState === 'done') && bodyColor !== 'transparent' && (
           <div style={{
-            position: 'absolute', top: 18, left: 16, right: 16, bottom: 18, // Approximate screen/body area
+            position: 'absolute', top: 18, left: 16, right: 16, bottom: 18,
             borderRadius: 36,
             backgroundColor: bodyColor,
             mixBlendMode: 'overlay',
@@ -191,7 +202,6 @@ export default function Home() {
           <div className="status-panel">
             <h2>{isJapanese ? 'デコレーション' : 'Decoration Time!'}</h2>
 
-            {/* Tool Selectors */}
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '1rem' }}>
               <button
                 onClick={() => setSelectedTool('color')}
@@ -209,7 +219,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Color Palette */}
             {selectedTool === 'color' && (
               <div className="palette">
                 {COLORS.map(c => (
@@ -223,7 +232,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Sticker Instructions */}
             {selectedTool === 'sticker' && (
               <p style={{ fontSize: '0.8rem' }}>
                 {isJapanese ? '画面をタップしてスタンプ！' : 'Tap screen to stamp!'}
@@ -240,17 +248,18 @@ export default function Home() {
         {gameState === 'done' && (
           <div className="status-panel">
             <h2>{isJapanese ? '修理完了！' : 'Repair Complete!'}</h2>
-            <p className="status-badge" style={{ display: 'inline-flex', marginTop: '0.5rem' }}>
-              ✨ Perfect!
-            </p>
-            <div style={{ marginTop: '1rem' }}>
+
+            <div style={{ display: 'flex', gap: '1rem', width: '100%', marginTop: '1rem' }}>
+              <button className="action-btn" style={{ background: '#38BDF8', color: '#fff' }} onClick={handleShare}>
+                {isJapanese ? 'シェアする' : 'Share'}
+              </button>
               <button className="action-btn" onClick={() => {
                 setGameState('welcome');
                 setProgress(0);
                 setStickers([]);
                 setBodyColor('transparent');
               }}>
-                {isJapanese ? '次の依頼へ' : 'Next Request'}
+                {isJapanese ? '次へ' : 'Next'}
               </button>
             </div>
           </div>
