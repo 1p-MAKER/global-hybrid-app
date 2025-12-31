@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Device } from '@capacitor/device';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import Image from 'next/image';
 
 export default function Home() {
@@ -23,15 +24,22 @@ export default function Home() {
 
   const isJapanese = lang && (lang.toLowerCase() === 'ja' || lang.toLowerCase().startsWith('ja-'));
 
-  // Handler to start the game
+  const triggerHaptic = async () => {
+    try {
+      await Haptics.impact({ style: ImpactStyle.Heavy });
+    } catch (e) {
+      // Ignore if haptics not available
+    }
+  };
+
   const handleStart = () => {
     setGameState('cleaning');
     setProgress(0);
   };
 
-  // Mock interaction for cleaning/fixing (Clicking the phone to progress)
   const handlePhoneInteraction = () => {
     if (gameState === 'cleaning') {
+      triggerHaptic();
       const newProgress = progress + 10;
       if (newProgress >= 100) {
         setProgress(0);
@@ -40,6 +48,7 @@ export default function Home() {
         setProgress(newProgress);
       }
     } else if (gameState === 'fixing') {
+      triggerHaptic();
       const newProgress = progress + 10;
       if (newProgress >= 100) {
         setProgress(100);
@@ -56,16 +65,33 @@ export default function Home() {
     <div className="game-container">
       {/* PHONE ASSET LAYER */}
       <div className="phone-wrapper" onClick={handlePhoneInteraction}>
+        {/* Damaged Phone - Visible primarily during welcome & cleaning */}
         <Image
-          src="/phone_damaged.png" // Placeholder asset
+          src="/phone_damaged.png"
           alt="Damaged Phone"
           fill
           className="phone-image"
           style={{
-            opacity: gameState === 'done' ? 0.5 : 1, // Visual change on done
-            transform: gameState === 'cleaning' ? `scale(${1 + progress / 500})` : 'scale(1)'
+            opacity: gameState === 'done' || (gameState === 'fixing' && progress > 50) ? 0 : 1,
+            transition: 'opacity 0.5s ease',
+            transform: gameState === 'cleaning' ? `scale(${1 + progress / 500})` : 'scale(1)',
+            zIndex: 1
           }}
         />
+
+        {/* Clean Phone - Fades in during fixing/done */}
+        <Image
+          src="/phone_clean.png"
+          alt="Clean Phone"
+          fill
+          className="phone-image"
+          style={{
+            opacity: gameState === 'done' || (gameState === 'fixing' && progress > 50) ? 1 : 0,
+            transition: 'opacity 0.5s ease',
+            zIndex: 2
+          }}
+        />
+
         {/* Interaction hint overlay */}
         {(gameState === 'cleaning' || gameState === 'fixing') && (
           <div className="interaction-layer"></div>
@@ -101,7 +127,7 @@ export default function Home() {
         {gameState === 'fixing' && (
           <div className="status-panel">
             <h2>{isJapanese ? '修理中...' : 'Repairing...'}</h2>
-            <p>{isJapanese ? 'タップして新しいパネルを装着' : 'Tap to install new panel'}</p>
+            <p>{isJapanese ? '新しいパネルを装着します' : 'Installing new panel'}</p>
             <div className="repair-progress">
               <div className="progress-bar" style={{ width: `${progress}%`, background: '#4ADE80' }}></div>
             </div>
@@ -116,7 +142,10 @@ export default function Home() {
               ✨ Perfect!
             </p>
             <div style={{ marginTop: '1rem' }}>
-              <button className="action-btn" onClick={() => setGameState('welcome')}>
+              <button className="action-btn" onClick={() => {
+                setGameState('welcome');
+                setProgress(0);
+              }}>
                 {isJapanese ? '次の依頼へ' : 'Next Request'}
               </button>
             </div>
