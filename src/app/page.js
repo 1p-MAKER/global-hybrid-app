@@ -53,8 +53,13 @@ export default function Home() {
     img.src = '/phone_damaged.png';
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Cover with damaged visual
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Calculate aspect ratio to fit/cover nicely
+      const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+      const x = (canvas.width / 2) - (img.width / 2) * scale;
+      const y = (canvas.height / 2) - (img.height / 2) * scale;
+
+      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
 
       // Add extra dirt/cracks if stage implies it
       if (gameState === 'cleaning') {
@@ -66,7 +71,7 @@ export default function Home() {
 
   useEffect(() => {
     if (gameState === 'cleaning' || gameState === 'fixing') {
-      initMask();
+      setTimeout(initMask, 50); // Small delay to ensure layout is ready
     }
   }, [gameState, initMask]);
 
@@ -80,14 +85,16 @@ export default function Home() {
 
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
-    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 40, 0, Math.PI * 2); // Larger scrub area
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
   };
 
   // --- ASMR Particle System ---
   const spawnParticles = useCallback((x, y, type) => {
-    const rect = canvasRef.current.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
     const canvasX = x - rect.left;
     const canvasY = y - rect.top;
 
@@ -96,10 +103,10 @@ export default function Home() {
       particles.current.push({
         x: canvasX,
         y: canvasY,
-        vx: (Math.random() - 0.5) * 12,
-        vy: (Math.random() - 0.5) * 12 - 3,
+        vx: (Math.random() - 0.5) * 15,
+        vy: (Math.random() - 0.5) * 15 - 5,
         life: 1.0,
-        size: Math.random() * 6 + 2,
+        size: Math.random() * 8 + 2,
         color: type === 'cleaning' ? '#8B4513' : 'rgba(230, 245, 255, 0.9)',
         shape: type === 'cleaning' ? 'circle' : 'poly'
       });
@@ -117,7 +124,7 @@ export default function Home() {
     particles.current.forEach(p => {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.4; // Gravity
+      p.vy += 0.5; // Gravity
       p.life -= 0.02;
 
       ctx.globalAlpha = p.life;
@@ -131,7 +138,7 @@ export default function Home() {
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(p.life * 8);
-        ctx.shadowBlur = 5;
+        ctx.shadowBlur = 10;
         ctx.shadowColor = 'white';
         ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
         ctx.restore();
@@ -180,9 +187,7 @@ export default function Home() {
   const triggerHaptic = async (style = ImpactStyle.Heavy) => {
     try {
       await Haptics.impact({ style });
-    } catch (e) {
-      // Ignore
-    }
+    } catch (e) { /* Ignore */ }
   };
 
   const handleShare = async () => {
@@ -195,9 +200,7 @@ export default function Home() {
         url: 'https://github.com/1p-MAKER/global-hybrid-app',
         dialogTitle: isJapanese ? 'シェアする' : 'Share with friends',
       });
-    } catch (e) {
-      console.log('Share failed:', e);
-    }
+    } catch (e) { console.log('Share failed:', e); }
   };
 
   const handleStart = () => {
@@ -212,7 +215,7 @@ export default function Home() {
     lastPos.current = { x: e.clientX, y: e.clientY };
 
     if (gameState === 'cleaning' || gameState === 'fixing') {
-      updateProgress(0.5);
+      updateProgress(0.8);
       spawnParticles(e.clientX, e.clientY, gameState);
       scrubMask(e.clientX, e.clientY);
     } else if (gameState === 'deco' && selectedTool === 'sticker') {
@@ -220,9 +223,7 @@ export default function Home() {
     }
   };
 
-  const handlePointerUp = () => {
-    setIsPointerDown(false);
-  };
+  const handlePointerUp = () => { setIsPointerDown(false); };
 
   const handlePointerMove = (e) => {
     setMousePos({ x: e.clientX, y: e.clientY });
@@ -236,7 +237,7 @@ export default function Home() {
       if (dist > 10) {
         lastPos.current = { x: e.clientX, y: e.clientY };
         if (gameState === 'cleaning' || gameState === 'fixing') {
-          updateProgress(dist / (15 + level)); // Gradually get harder
+          updateProgress(dist / (12 + level)); // Faster progress
           triggerHaptic(ImpactStyle.Light);
           spawnParticles(e.clientX, e.clientY, gameState);
           scrubMask(e.clientX, e.clientY);
@@ -247,7 +248,7 @@ export default function Home() {
 
   const triggerShine = () => {
     setIsShining(true);
-    setTimeout(() => setIsShining(false), 1000);
+    setTimeout(() => setIsShining(false), 1200);
   };
 
   const updateProgress = (amount) => {
@@ -307,7 +308,7 @@ export default function Home() {
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
     >
-      <div style={{ position: 'absolute', top: '20px', left: '20px', fontSize: '0.9rem', opacity: 0.6, fontWeight: 'bold' }}>
+      <div className="stage-badge">
         STAGE {level + 1}
       </div>
 
@@ -323,20 +324,20 @@ export default function Home() {
       </div>
 
       <div className="phone-wrapper" style={{ transform: `rotate(${currentStage.tilt}deg)` }}>
-        {/* SHINE EFFECT */}
         <div className={`phone-shine ${isShining ? 'animate-shine' : ''}`}></div>
 
-        {/* Clean Phone base (The Goal) */}
+        {/* Clean Phone base */}
         <Image
           src="/phone_clean.png"
           alt="Clean Phone"
           fill
+          priority
           className="phone-image"
           style={{
-            zIndex: 2,
+            zIndex: 5,
             filter: bodyColor !== 'transparent'
-              ? `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) opacity(0.8) drop-shadow(0 0 0 ${bodyColor})`
-              : `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) drop-shadow(0 0 0 ${currentStage.color})`
+              ? `opacity(0.85) drop-shadow(0 0 0 ${bodyColor})`
+              : `drop-shadow(0 0 0 ${currentStage.color})` // Vary phone body color tint
           }}
         />
 
@@ -348,23 +349,22 @@ export default function Home() {
         {/* Dynamic ASMR Particle Canvas */}
         <canvas ref={canvasRef} className="asmr-canvas"></canvas>
 
+        {/* Deco Color Overlay (Overlay Mode) */}
         {(gameState === 'deco' || gameState === 'done') && bodyColor !== 'transparent' && (
           <div style={{
-            position: 'absolute', top: 18, left: 16, right: 16, bottom: 18,
-            borderRadius: 36,
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: bodyColor,
             mixBlendMode: 'overlay',
-            opacity: 0.6,
-            zIndex: 16,
+            opacity: 0.5,
+            zIndex: 10,
             pointerEvents: 'none'
           }}></div>
         )}
 
+        {/* Stickers */}
         {(gameState === 'deco' || gameState === 'done') && stickers.map(s => (
-          <div key={s.id} className={`sticker sticker-${s.type}`} style={{ left: s.x, top: s.y, zIndex: 17 }}></div>
+          <div key={s.id} className={`sticker sticker-${s.type}`} style={{ left: s.x, top: s.y }}></div>
         ))}
-
-        <div className="interaction-layer"></div>
       </div>
 
       <div className="ui-overlay">
@@ -372,7 +372,7 @@ export default function Home() {
           <div className="status-panel">
             <h2>{isJapanese ? currentStage.desc_ja : currentStage.desc_en}</h2>
             <p>{currentStage.title}</p>
-            <button className="action-btn" style={{ marginTop: '1rem' }} onClick={handleStart}>
+            <button className="action-btn" style={{ marginTop: '1.5rem' }} onClick={handleStart}>
               {isJapanese ? '修理を開始する' : 'Start Repair'}
             </button>
           </div>
@@ -381,7 +381,7 @@ export default function Home() {
         {gameState === 'cleaning' && (
           <div className="status-panel">
             <h2>{isJapanese ? 'クリーニング中...' : 'Cleaning...'}</h2>
-            <p>{isJapanese ? 'スクラブして汚れを落としましょう' : 'Scrub to remove dirt'}</p>
+            <p>{isJapanese ? 'スクラブして汚れを落とし、ガラスを磨きましょう' : 'Scrub to remove dirt and polish glass'}</p>
             <div className="repair-progress">
               <div className="progress-bar" style={{ width: `${progress}%` }}></div>
             </div>
@@ -393,7 +393,7 @@ export default function Home() {
             <h2>{isJapanese ? '修理中...' : 'Repairing...'}</h2>
             <p>{isJapanese ? 'ひび割れを磨いて直しましょう' : 'Polish away the cracks'}</p>
             <div className="repair-progress">
-              <div className="progress-bar" style={{ width: `${progress}%`, background: '#4ADE80' }}></div>
+              <div className="progress-bar" style={{ width: `${progress}%` }}></div>
             </div>
           </div>
         )}
@@ -402,21 +402,21 @@ export default function Home() {
           <div className="status-panel">
             <h2>{isJapanese ? 'デコレーション' : 'Decoration Time!'}</h2>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '1rem' }}>
-              <button onClick={() => setSelectedTool('color')} className="action-btn" style={{ background: selectedTool === 'color' ? '#fff' : 'rgba(255,255,255,0.1)', color: selectedTool === 'color' ? '#000' : '#fff', padding: '0.5rem 1rem' }}>🎨 Color</button>
-              <button onClick={() => setSelectedTool('sticker')} className="action-btn" style={{ background: selectedTool === 'sticker' ? '#fff' : 'rgba(255,255,255,0.1)', color: selectedTool === 'sticker' ? '#000' : '#fff', padding: '0.5rem 1rem' }}>✨ Sticker</button>
+              <button onClick={() => setSelectedTool('color')} className="action-btn" style={{ background: selectedTool === 'color' ? '#fff' : 'rgba(255,255,255,0.1)', color: selectedTool === 'color' ? '#000' : '#fff', padding: '0.8rem', fontSize: '0.9rem' }}>🎨 Color</button>
+              <button onClick={() => setSelectedTool('sticker')} className="action-btn" style={{ background: selectedTool === 'sticker' ? '#fff' : 'rgba(255,255,255,0.1)', color: selectedTool === 'sticker' ? '#000' : '#fff', padding: '0.8rem', fontSize: '0.9rem' }}>✨ Sticker</button>
             </div>
             {selectedTool === 'color' && <div className="palette">{COLORS.map(c => <div key={c} className={`color-swatch ${bodyColor === c ? 'active' : ''}`} style={{ background: c }} onClick={() => { setBodyColor(c); playTap(); }} />)}</div>}
-            {selectedTool === 'sticker' && <p style={{ fontSize: '0.8rem' }}>{isJapanese ? '画面をタップしてスタンプ！' : 'Tap screen to stamp!'}</p>}
-            <button className="action-btn" style={{ marginTop: '1rem', background: '#4ADE80' }} onClick={() => { setGameState('done'); playSuccess(); setLevel(l => l + 1); }}>{isJapanese ? '完成！' : 'Finish!'}</button>
+            {selectedTool === 'sticker' && <p style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>{isJapanese ? '画面をタップしてスタンプ！' : 'Tap screen to stamp!'}</p>}
+            <button className="action-btn" style={{ marginTop: '1rem', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }} onClick={() => { setGameState('done'); playSuccess(); setLevel(l => l + 1); }}>{isJapanese ? '完成！' : 'Finish!'}</button>
           </div>
         )}
 
         {gameState === 'done' && (
-          <div className="status-panel">
+          <div className="status-panel" style={{ paddingBottom: '4rem' }}>
             <h2>{isJapanese ? '修理完了！' : 'Repair Complete!'}</h2>
-            <div style={{ display: 'flex', gap: '1rem', width: '100%', marginTop: '1rem' }}>
-              <button className="action-btn" style={{ background: '#38BDF8', color: '#fff' }} onClick={handleShare}>{isJapanese ? 'シェアする' : 'Share'}</button>
-              <button className="action-btn" onClick={() => { setGameState('welcome'); setProgress(0); setStickers([]); setBodyColor('transparent'); }}>{isJapanese ? '次の依頼へ' : 'Next Request'}</button>
+            <div style={{ display: 'flex', gap: '1rem', width: '100%', marginTop: '1.5rem' }}>
+              <button className="action-btn" style={{ background: 'linear-gradient(135deg, #6366F1 0%, #4338CA 100%)', flex: 1 }} onClick={handleShare}>{isJapanese ? 'シェア' : 'Share'}</button>
+              <button className="action-btn" style={{ flex: 1.5 }} onClick={() => { setGameState('welcome'); setProgress(0); setStickers([]); setBodyColor('transparent'); }}>{isJapanese ? '次の依頼へ' : 'Next Request'}</button>
             </div>
           </div>
         )}

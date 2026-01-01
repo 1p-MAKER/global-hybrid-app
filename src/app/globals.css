@@ -27,11 +27,8 @@ body {
   justify-content: center;
   align-items: center;
   overflow: hidden;
-  /* App-like feel */
   -webkit-touch-callout: none;
-  /* Prevent iOS hold menu */
   user-select: none;
-  /* Prevent selection */
 }
 
 .game-container {
@@ -44,10 +41,10 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at center, #1E293B 0%, #0F172A 100%);
+  background: #0A1930;
+  /* Matches the deep blue in the phone assets */
   overflow: hidden;
   cursor: none;
-  /* Custom tool cursor */
 }
 
 @media (pointer: coarse) {
@@ -61,17 +58,18 @@ body {
   top: 60px;
   right: 20px;
   background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(8px);
-  padding: 0.5rem 1rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0.6rem 1.2rem;
   border-radius: 99px;
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   gap: 0.5rem;
   z-index: 100;
   font-weight: 800;
   color: var(--money-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   animation: slideInRight 0.5s ease-out;
 }
 
@@ -104,17 +102,19 @@ body {
 
 .phone-wrapper {
   position: relative;
-  width: 300px;
-  height: 600px;
+  width: 380px;
+  height: 760px;
   perspective: 1000px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .phone-image {
-  object-fit: contain;
-  filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.5));
+  object-fit: cover;
+  filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.6));
   transition: transform 0.1s ease-out;
   pointer-events: none;
-  /* Let clicks pass through to layer */
 }
 
 /** ASMR EFFECTS **/
@@ -124,12 +124,10 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 21;
-  /* Above mask, below UI */
+  z-index: 25;
   pointer-events: none;
 }
 
-/* This canvas will handle the selective erasing */
 .mask-canvas {
   position: absolute;
   top: 0;
@@ -138,9 +136,6 @@ body {
   height: 100%;
   z-index: 15;
   pointer-events: none;
-  border-radius: 40px;
-  /* Match phone frame */
-  overflow: hidden;
 }
 
 .phone-shine {
@@ -151,15 +146,15 @@ body {
   height: 100%;
   background: linear-gradient(to right,
       rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.4) 50%,
+      rgba(255, 255, 255, 0.5) 50%,
       rgba(255, 255, 255, 0) 100%);
   transform: skewX(-25deg);
-  z-index: 25;
+  z-index: 26;
   pointer-events: none;
 }
 
 .animate-shine {
-  animation: shine 0.8s ease-out forwards;
+  animation: shine 1s ease-out forwards;
 }
 
 @keyframes shine {
@@ -175,19 +170,18 @@ body {
 /** DECO STYLES **/
 .sticker {
   position: absolute;
-  width: 60px;
-  height: 60px;
+  width: 100px;
+  height: 100px;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.3));
   pointer-events: none;
-  /* They are "painted" on */
-  z-index: 10;
+  z-index: 20;
   background-image: url('/stickers.png');
   background-size: 200%;
-  /* 2x2 grid assumed for now */
+  mix-blend-mode: multiply;
+  /* Removes white bg from generated sprite */
 }
 
-/* Sprite Classes */
 .sticker-0 {
   background-position: 0% 0%;
 }
@@ -204,25 +198,28 @@ body {
   background-position: 100% 100%;
 }
 
-
 .interaction-layer {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 20;
+  z-index: 10;
+  /* Base interaction */
 }
 
+/** UI OVERLAYS **/
 .ui-overlay {
   position: absolute;
-  bottom: 50px;
+  bottom: 0;
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
   display: flex;
   flex-direction: column;
   gap: 1rem;
   align-items: center;
-  z-index: 30;
-  width: 90%;
+  z-index: 100;
+  width: 100%;
   pointer-events: none;
 }
 
@@ -231,83 +228,134 @@ body {
 }
 
 .status-panel {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  padding: 1rem 1.5rem;
-  border-radius: 20px;
-  border: 1px solid var(--glass-border);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 1.5rem 2rem 3rem 2rem;
+  border-radius: 32px 32px 0 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: none;
   text-align: center;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -15px 50px rgba(0, 0, 0, 0.5);
   width: 100%;
+  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
 }
 
 .repair-progress {
   width: 100%;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  margin-top: 0.75rem;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  margin: 1.5rem 0;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .progress-bar {
   height: 100%;
-  background: var(--accent-color);
+  background: linear-gradient(90deg, #38BDF8, #818CF8, #38BDF8);
+  background-size: 200% 100%;
+  animation: progressShimmer 2s linear infinite;
   width: 0%;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s ease-out;
+}
+
+@keyframes progressShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
 }
 
 h2 {
-  font-size: 1.25rem;
-  margin-bottom: 0.25rem;
-  color: var(--text-primary);
-  font-weight: 700;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 p {
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 .action-btn {
-  background: var(--accent-color);
-  color: #0F172A;
+  background: linear-gradient(135deg, #38BDF8 0%, #1D4ED8 100%);
+  color: white;
   border: none;
-  padding: 1rem 2rem;
-  font-size: 1rem;
-  font-weight: 700;
-  border-radius: 99px;
+  padding: 1.2rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+  border-radius: 18px;
   cursor: pointer;
-  box-shadow: 0 4px 6px rgba(56, 189, 248, 0.2);
-  transition: all 0.2s;
+  box-shadow: 0 10px 25px -5px rgba(29, 78, 216, 0.5);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.05rem;
 }
 
 .action-btn:active {
-  transform: scale(0.98);
-  filter: brightness(0.9);
+  transform: scale(0.95);
+  filter: brightness(1.1);
 }
 
-/* DECO PALETTE */
+/** PALETTE **/
 .palette {
   display: flex;
-  gap: 0.75rem;
-  padding: 0.5rem;
+  gap: 1.2rem;
+  padding: 1.5rem 0.5rem;
   overflow-x: auto;
   justify-content: center;
 }
 
 .color-swatch {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
 }
 
 .color-swatch.active {
-  transform: scale(1.1);
-  border-color: white;
+  transform: scale(1.2) rotate(8deg);
+  border-color: #fff;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.stage-badge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(8px);
+  padding: 0.4rem 1rem;
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.1em;
+  z-index: 50;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
