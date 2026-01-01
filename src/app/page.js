@@ -74,12 +74,24 @@ export default function Home() {
           const oy = (canvas.height / 2) - (overlay.height / 2) * oScale;
           ctx.drawImage(overlay, ox, oy, overlay.width * oScale, overlay.height * oScale);
         } else {
-          // Cleaning Dirt
-          ctx.fillStyle = 'rgba(25, 15, 10, 0.97)';
+          // Cleaning Dirt - Much more visible
+          const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+          gradient.addColorStop(0, 'rgba(60, 40, 20, 0.98)');
+          gradient.addColorStop(0.5, 'rgba(80, 50, 25, 0.99)');
+          gradient.addColorStop(1, 'rgba(45, 30, 15, 0.98)');
+          ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-          for (let i = 0; i < 600; i++) {
+          // Add more visible dirt particles
+          ctx.fillStyle = 'rgba(40, 25, 10, 0.6)';
+          for (let i = 0; i < 200; i++) {
+            const size = Math.random() * 8 + 2;
+            ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, size, size);
+          }
+
+          // Fine dust
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+          for (let i = 0; i < 800; i++) {
             ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 1, 1);
           }
         }
@@ -369,9 +381,10 @@ export default function Home() {
           className="phone-image"
           style={{
             zIndex: 5,
+            objectFit: 'cover',
             filter: bodyColor !== 'transparent'
-              ? `opacity(0.85) drop-shadow(0 0 0 ${bodyColor})`
-              : `drop-shadow(0 0 0 ${currentStage.color})` // Vary phone body color tint
+              ? `opacity(0.85) drop-shadow(0 20px 50px rgba(0,0,0,0.6))`
+              : `drop-shadow(0 20px 50px rgba(0,0,0,0.6))`
           }}
         />
 
