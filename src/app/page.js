@@ -48,47 +48,51 @@ export default function Home() {
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
 
-    // Draw Damaged Layer (Masked to Phone Shape)
-    const img = new window.Image();
-    img.src = '/phone_clean.png'; // Use clean phone as the mask base
-    img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear first
+    const phoneImg = new window.Image();
+    phoneImg.src = '/phone_clean.png';
+    phoneImg.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. Draw the Base Shape (Phone)
-      // Use COVER to match the underlying phone image exactly
-      const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-      const x = (canvas.width / 2) - (img.width / 2) * scale;
-      const y = (canvas.height / 2) - (img.height / 2) * scale;
-      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+      // Exact same math as CSS 'object-fit: cover'
+      const scale = Math.max(canvas.width / phoneImg.width, canvas.height / phoneImg.height);
+      const x = (canvas.width / 2) - (phoneImg.width / 2) * scale;
+      const y = (canvas.height / 2) - (phoneImg.height / 2) * scale;
+      const dw = phoneImg.width * scale;
+      const dh = phoneImg.height * scale;
 
-      // 2. Composite Mode: Source-In (Only draw where the phone is opaque)
-      ctx.globalCompositeOperation = 'source-in';
+      const completeInit = (overlay) => {
+        ctx.save();
+        // 1. Draw the phone shape to define the source
+        ctx.drawImage(phoneImg, x, y, dw, dh);
 
-      if (gameState === 'cleaning') {
-        // Draw Dust
-        ctx.fillStyle = 'rgba(60, 40, 20, 0.95)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 2. Set mode to only keep subsequent drawings within that shape
+        ctx.globalCompositeOperation = 'source-in';
 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        for (let i = 0; i < 500; i++) {
-          ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
-        }
-        // Reset immediately for cleaning
-        ctx.globalCompositeOperation = 'source-over';
-      } else if (gameState === 'fixing') {
-        // Draw Cracks Overlay
-        const overlay = new window.Image();
-        overlay.src = '/overlay_cracked.png';
-        overlay.onload = () => {
-          // Draw overlay centered/covering the canvas, but it will be clipped to phone shape
+        if (overlay) {
           const oScale = Math.max(canvas.width / overlay.width, canvas.height / overlay.height);
           const ox = (canvas.width / 2) - (overlay.width / 2) * oScale;
           const oy = (canvas.height / 2) - (overlay.height / 2) * oScale;
           ctx.drawImage(overlay, ox, oy, overlay.width * oScale, overlay.height * oScale);
+        } else {
+          // Cleaning Dirt
+          ctx.fillStyle = 'rgba(25, 15, 10, 0.97)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // Reset Composite Mode for later scrubbing
-          ctx.globalCompositeOperation = 'source-over';
-        };
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+          for (let i = 0; i < 600; i++) {
+            ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 1, 1);
+          }
+        }
+        ctx.restore();
+        ctx.globalCompositeOperation = 'source-over'; // Crucial for erasing
+      };
+
+      if (gameState === 'cleaning') {
+        completeInit(null);
+      } else if (gameState === 'fixing') {
+        const crackImg = new window.Image();
+        crackImg.src = '/overlay_cracked.png';
+        crackImg.onload = () => completeInit(crackImg);
       }
     };
   }, [gameState]);
@@ -261,9 +265,14 @@ export default function Home() {
       if (dist > 10) {
         lastPos.current = { x: e.clientX, y: e.clientY };
         if (gameState === 'cleaning' || gameState === 'fixing') {
-          updateProgress(dist / (12 + level)); // Faster progress
+          updateProgress(dist / (12 + level));
           triggerHaptic(ImpactStyle.Light);
-          playScrub(); // Play scrubbing sound
+
+          // Debounced scrub sound for better performance and clear ASMR
+          if (Math.random() > 0.4) {
+            playScrub();
+          }
+
           spawnParticles(e.clientX, e.clientY, gameState);
           scrubMask(e.clientX, e.clientY);
         }
