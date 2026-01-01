@@ -48,25 +48,32 @@ export default function Home() {
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
 
-    // Draw Damaged Layer
-    const img = new window.Image();
-    img.src = '/phone_damaged.png';
-    img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Calculate aspect ratio to fit (cover) nicely
-      const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-      const x = (canvas.width / 2) - (img.width / 2) * scale;
-      const y = (canvas.height / 2) - (img.height / 2) * scale;
+    if (gameState === 'cleaning') {
+      // Draw Dust Layer (Simple Fill)
+      ctx.fillStyle = 'rgba(60, 40, 20, 0.95)'; // Deep dust/dirt color
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-
-      // Add extra dirt/cracks if stage implies it
-      if (gameState === 'cleaning') {
-        ctx.fillStyle = 'rgba(139, 69, 19, 0.4)'; // Dust overlay
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Add granular noise effect (simulated with small random rects for performance)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+      for (let i = 0; i < 500; i++) {
+        ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
       }
-    };
+    } else if (gameState === 'fixing') {
+      // Draw Crack Overlay
+      const img = new window.Image();
+      img.src = '/overlay_cracked.png';
+      img.onload = () => {
+        // Calculate aspect ratio to fit (cover) nicely
+        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+        const x = (canvas.width / 2) - (img.width / 2) * scale;
+        const y = (canvas.height / 2) - (img.height / 2) * scale;
+
+        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+      };
+    }
   }, [gameState]);
 
   useEffect(() => {
