@@ -13,6 +13,7 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [money, setMoney] = useState(0);
   const [level, setLevel] = useState(0);
+  const [isShining, setIsShining] = useState(false);
   const { playTap, playSuccess } = useSound();
 
   const STAGES = [
@@ -34,9 +35,55 @@ export default function Home() {
   const [isPointerDown, setIsPointerDown] = useState(false);
   const lastPos = useRef({ x: 0, y: 0 });
   const canvasRef = useRef(null);
+  const maskCanvasRef = useRef(null);
   const particles = useRef([]);
 
   const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#f59e0b'];
+
+  // --- Masking System (Selective Scrapping) ---
+  const initMask = useCallback(() => {
+    const canvas = maskCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
+    // Draw Damaged Layer
+    const img = new window.Image();
+    img.src = '/phone_damaged.png';
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Cover with damaged visual
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Add extra dirt/cracks if stage implies it
+      if (gameState === 'cleaning') {
+        ctx.fillStyle = 'rgba(139, 69, 19, 0.4)'; // Dust overlay
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    };
+  }, [gameState]);
+
+  useEffect(() => {
+    if (gameState === 'cleaning' || gameState === 'fixing') {
+      initMask();
+    }
+  }, [gameState, initMask]);
+
+  const scrubMask = (x, y) => {
+    const canvas = maskCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const cx = x - rect.left;
+    const cy = y - rect.top;
+
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  };
 
   // --- ASMR Particle System ---
   const spawnParticles = useCallback((x, y, type) => {
@@ -44,16 +91,16 @@ export default function Home() {
     const canvasX = x - rect.left;
     const canvasY = y - rect.top;
 
-    const count = type === 'cleaning' ? 3 : 8;
+    const count = type === 'cleaning' ? 4 : 10;
     for (let i = 0; i < count; i++) {
       particles.current.push({
         x: canvasX,
         y: canvasY,
-        vx: (Math.random() - 0.5) * 10,
-        vy: (Math.random() - 0.5) * 10 - 2,
+        vx: (Math.random() - 0.5) * 12,
+        vy: (Math.random() - 0.5) * 12 - 3,
         life: 1.0,
-        size: Math.random() * 5 + 2,
-        color: type === 'cleaning' ? '#8B4513' : 'rgba(200, 230, 255, 0.8)',
+        size: Math.random() * 6 + 2,
+        color: type === 'cleaning' ? '#8B4513' : 'rgba(230, 245, 255, 0.9)',
         shape: type === 'cleaning' ? 'circle' : 'poly'
       });
     }
@@ -70,7 +117,7 @@ export default function Home() {
     particles.current.forEach(p => {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.5; // Gravity
+      p.vy += 0.4; // Gravity
       p.life -= 0.02;
 
       ctx.globalAlpha = p.life;
@@ -83,7 +130,9 @@ export default function Home() {
       } else {
         ctx.save();
         ctx.translate(p.x, p.y);
-        ctx.rotate(p.life * 10);
+        ctx.rotate(p.life * 8);
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = 'white';
         ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
         ctx.restore();
       }
@@ -103,6 +152,10 @@ export default function Home() {
       if (canvasRef.current) {
         canvasRef.current.width = canvasRef.current.offsetWidth;
         canvasRef.current.height = canvasRef.current.offsetHeight;
+      }
+      if (maskCanvasRef.current) {
+        maskCanvasRef.current.width = maskCanvasRef.current.offsetWidth;
+        maskCanvasRef.current.height = maskCanvasRef.current.offsetHeight;
       }
     };
     handleResize();
@@ -161,6 +214,7 @@ export default function Home() {
     if (gameState === 'cleaning' || gameState === 'fixing') {
       updateProgress(0.5);
       spawnParticles(e.clientX, e.clientY, gameState);
+      scrubMask(e.clientX, e.clientY);
     } else if (gameState === 'deco' && selectedTool === 'sticker') {
       placeSticker(e);
     }
@@ -185,9 +239,15 @@ export default function Home() {
           updateProgress(dist / (15 + level)); // Gradually get harder
           triggerHaptic(ImpactStyle.Light);
           spawnParticles(e.clientX, e.clientY, gameState);
+          scrubMask(e.clientX, e.clientY);
         }
       }
     }
+  };
+
+  const triggerShine = () => {
+    setIsShining(true);
+    setTimeout(() => setIsShining(false), 1000);
   };
 
   const updateProgress = (amount) => {
@@ -195,6 +255,7 @@ export default function Home() {
     setProgress(newProgress);
 
     if (newProgress >= 100) {
+      triggerShine();
       if (gameState === 'cleaning') {
         setGameState('fixing');
         setProgress(0);
@@ -262,28 +323,16 @@ export default function Home() {
       </div>
 
       <div className="phone-wrapper" style={{ transform: `rotate(${currentStage.tilt}deg)` }}>
-        <Image
-          src="/phone_damaged.png"
-          alt="Damaged Phone"
-          fill
-          className="phone-image"
-          style={{
-            opacity: gameState === 'cleaning' || (gameState === 'fixing' && progress <= 50) || gameState === 'welcome' ? 1 : 0,
-            transition: 'opacity 0.5s ease',
-            transform: gameState === 'cleaning' ? `scale(${1 + progress / 800})` : 'scale(1)',
-            zIndex: 1,
-            filter: `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) drop-shadow(0 0 0 ${currentStage.color})` // Vary phone body color
-          }}
-        />
+        {/* SHINE EFFECT */}
+        <div className={`phone-shine ${isShining ? 'animate-shine' : ''}`}></div>
 
+        {/* Clean Phone base (The Goal) */}
         <Image
           src="/phone_clean.png"
           alt="Clean Phone"
           fill
           className="phone-image"
           style={{
-            opacity: (gameState === 'fixing' && progress > 50) || gameState === 'deco' || gameState === 'done' ? 1 : 0,
-            transition: 'opacity 0.5s ease',
             zIndex: 2,
             filter: bodyColor !== 'transparent'
               ? `drop-shadow(0 20px 50px rgba(0,0,0,0.5)) opacity(0.8) drop-shadow(0 0 0 ${bodyColor})`
@@ -291,6 +340,12 @@ export default function Home() {
           }}
         />
 
+        {/* Selective Erase Mask Layer */}
+        {(gameState === 'cleaning' || gameState === 'fixing') && (
+          <canvas ref={maskCanvasRef} className="mask-canvas"></canvas>
+        )}
+
+        {/* Dynamic ASMR Particle Canvas */}
         <canvas ref={canvasRef} className="asmr-canvas"></canvas>
 
         {(gameState === 'deco' || gameState === 'done') && bodyColor !== 'transparent' && (
