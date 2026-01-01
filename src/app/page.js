@@ -14,7 +14,7 @@ export default function Home() {
   const [money, setMoney] = useState(0);
   const [level, setLevel] = useState(0);
   const [isShining, setIsShining] = useState(false);
-  const { playTap, playSuccess } = useSound();
+  const { playTap, playSuccess, playScrub } = useSound();
 
   const STAGES = [
     { id: 0, title: 'Old Classic', desc_en: 'Heavily dusted screen', desc_ja: 'ホコリまみれの旧式スマホ', color: '#1a1a1a' },
@@ -48,32 +48,49 @@ export default function Home() {
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Draw Damaged Layer (Masked to Phone Shape)
+    const img = new window.Image();
+    img.src = '/phone_clean.png'; // Use clean phone as the mask base
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear first
 
-    if (gameState === 'cleaning') {
-      // Draw Dust Layer (Simple Fill)
-      ctx.fillStyle = 'rgba(60, 40, 20, 0.95)'; // Deep dust/dirt color
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // 1. Draw the Base Shape (Phone)
+      // Use COVER to match the underlying phone image exactly
+      const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+      const x = (canvas.width / 2) - (img.width / 2) * scale;
+      const y = (canvas.height / 2) - (img.height / 2) * scale;
+      ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
 
-      // Add granular noise effect (simulated with small random rects for performance)
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-      for (let i = 0; i < 500; i++) {
-        ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
+      // 2. Composite Mode: Source-In (Only draw where the phone is opaque)
+      ctx.globalCompositeOperation = 'source-in';
+
+      if (gameState === 'cleaning') {
+        // Draw Dust
+        ctx.fillStyle = 'rgba(60, 40, 20, 0.95)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        for (let i = 0; i < 500; i++) {
+          ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 2, 2);
+        }
+        // Reset immediately for cleaning
+        ctx.globalCompositeOperation = 'source-over';
+      } else if (gameState === 'fixing') {
+        // Draw Cracks Overlay
+        const overlay = new window.Image();
+        overlay.src = '/overlay_cracked.png';
+        overlay.onload = () => {
+          // Draw overlay centered/covering the canvas, but it will be clipped to phone shape
+          const oScale = Math.max(canvas.width / overlay.width, canvas.height / overlay.height);
+          const ox = (canvas.width / 2) - (overlay.width / 2) * oScale;
+          const oy = (canvas.height / 2) - (overlay.height / 2) * oScale;
+          ctx.drawImage(overlay, ox, oy, overlay.width * oScale, overlay.height * oScale);
+
+          // Reset Composite Mode for later scrubbing
+          ctx.globalCompositeOperation = 'source-over';
+        };
       }
-    } else if (gameState === 'fixing') {
-      // Draw Crack Overlay
-      const img = new window.Image();
-      img.src = '/overlay_cracked.png';
-      img.onload = () => {
-        // Calculate aspect ratio to fit (cover) nicely
-        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-        const x = (canvas.width / 2) - (img.width / 2) * scale;
-        const y = (canvas.height / 2) - (img.height / 2) * scale;
-
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-      };
-    }
+    };
   }, [gameState]);
 
   useEffect(() => {
@@ -246,6 +263,7 @@ export default function Home() {
         if (gameState === 'cleaning' || gameState === 'fixing') {
           updateProgress(dist / (12 + level)); // Faster progress
           triggerHaptic(ImpactStyle.Light);
+          playScrub(); // Play scrubbing sound
           spawnParticles(e.clientX, e.clientY, gameState);
           scrubMask(e.clientX, e.clientY);
         }

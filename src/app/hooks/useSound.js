@@ -76,5 +76,36 @@ export function useSound() {
         });
     };
 
-    return { playTap, playSuccess };
+    const playScrub = () => {
+        const ctx = getContext();
+        if (!ctx) return;
+
+        // Create white noise buffer
+        const bufferSize = ctx.sampleRate * 0.1; // 0.1 seconds
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        // Filter to make it sound more like scrubbing (lowpass)
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1000, ctx.currentTime);
+
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        noise.start();
+    };
+
+    return { playTap, playSuccess, playScrub };
 }
