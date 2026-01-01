@@ -54,8 +54,8 @@ export default function Home() {
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Calculate aspect ratio to fit (contain) nicely
-      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+      // Calculate aspect ratio to fit (cover) nicely
+      const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
       const x = (canvas.width / 2) - (img.width / 2) * scale;
       const y = (canvas.height / 2) - (img.height / 2) * scale;
 
