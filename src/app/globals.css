@@ -111,7 +111,7 @@ body {
 }
 
 .phone-image {
-  object-fit: cover;
+  object-fit: contain;
   filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.6));
   transition: transform 0.1s ease-out;
   pointer-events: none;

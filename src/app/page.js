@@ -17,10 +17,10 @@ export default function Home() {
   const { playTap, playSuccess } = useSound();
 
   const STAGES = [
-    { id: 0, title: 'Old Classic', desc_en: 'Heavily dusted screen', desc_ja: 'ホコリまみれの旧式スマホ', color: '#1a1a1a', tilt: 0 },
-    { id: 1, title: 'Extreme Crack', desc_en: 'Shattered glass everywhere', desc_ja: 'バキバキの画面', color: '#2c3e50', tilt: 10 },
-    { id: 2, title: 'Neon Edition', desc_en: 'High-end stylish phone', desc_ja: '最新のネオンスマホ', color: '#8e44ad', tilt: -5 },
-    { id: 3, title: 'Future Pad', desc_en: 'Large experimental tablet', desc_ja: '大型の試作タブレット', color: '#27ae60', tilt: 5 },
+    { id: 0, title: 'Old Classic', desc_en: 'Heavily dusted screen', desc_ja: 'ホコリまみれの旧式スマホ', color: '#1a1a1a' },
+    { id: 1, title: 'Extreme Crack', desc_en: 'Shattered glass everywhere', desc_ja: 'バキバキの画面', color: '#2c3e50' },
+    { id: 2, title: 'Neon Edition', desc_en: 'High-end stylish phone', desc_ja: '最新のネオンスマホ', color: '#8e44ad' },
+    { id: 3, title: 'Future Pad', desc_en: 'Large experimental tablet', desc_ja: '大型の試作タブレット', color: '#27ae60' },
   ];
 
   const currentStage = STAGES[level % STAGES.length];
@@ -54,8 +54,8 @@ export default function Home() {
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Calculate aspect ratio to fit/cover nicely
-      const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+      // Calculate aspect ratio to fit (contain) nicely
+      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
       const x = (canvas.width / 2) - (img.width / 2) * scale;
       const y = (canvas.height / 2) - (img.height / 2) * scale;
 
@@ -323,7 +323,7 @@ export default function Home() {
         {getToolIcon()}
       </div>
 
-      <div className="phone-wrapper" style={{ transform: `rotate(${currentStage.tilt}deg)` }}>
+      <div className="phone-wrapper">
         <div className={`phone-shine ${isShining ? 'animate-shine' : ''}`}></div>
 
         {/* Clean Phone base */}
